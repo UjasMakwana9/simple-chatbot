@@ -1,0 +1,149 @@
+from fastapi import FastAPI, Query
+from langchain.prompts import ChatPromptTemplate
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langserve import add_routes
+import uvicorn
+import os
+from dotenv import load_dotenv
+from fastapi.responses import StreamingResponse
+import requests
+from io import BytesIO
+
+load_dotenv()
+os.environ['GOOGLE_API_KEY'] = os.getenv('GOOGLE_API_KEY')
+
+app = FastAPI(
+    title="Langchain Server",
+    version="1.0",
+    description="A simple API Server with Gemini + gTTS Audio"
+)
+
+# -------------------------------
+# Gemini Model
+# -------------------------------
+model = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
+
+# Basic chat endpoint
+# This endpoint exposes the Gemini model at /gemini/invoke
+# add_routes(app, model, path="/gemini")
+
+# -------------------------------
+# Companion endpoint
+# -------------------------------
+@app.post("/companion")
+async def companion(prompt: str, context: str = ""):
+    try:
+        # Single Gemini call: ask for answer and 10-word summary
+        full_prompt = (
+            f"Context: {context}\nUser: {prompt}\n"
+            "First, answer the user's question. Then, on a new line, write a summary of this Q&A in exactly 10 words, prefixed with 'SUMMARY:'."
+        )
+        response_obj = model.invoke(full_prompt)
+        output = response_obj.content
+
+        # Check for API key error
+        if "API key not valid" in output or "Please pass a valid API key" in output:
+            return {"error": "API key not valid. Please check your Gemini API key."}
+
+        # Split answer and summary
+        lines = output.splitlines()
+        answer_lines = []
+        context_summary = ""
+        for line in lines:
+            if line.strip().startswith("SUMMARY:"):
+                context_summary = line.strip().replace("SUMMARY:", "").strip()
+            else:
+                answer_lines.append(line)
+        answer = "\n".join(answer_lines).strip()
+
+        if not answer or not context_summary:
+            return {"error": "API ERROR From Server"}
+
+        return {
+            "answer": answer,
+            "context_summary": context_summary
+        }
+    except Exception:
+        return {"error": "API ERROR From Server"}
+# -------------------------------
+# Essay endpoint
+# -------------------------------
+@app.get("/essay")
+async def essay(topic: str, length: int = 100):
+    try:
+        prompt = ChatPromptTemplate.from_template(
+        "Write me an essay about {topic} with {length} words. "
+        "Make each paragraph no longer than 50 words. "
+        "Use simple words so people enjoy reading it."
+    )
+        # When you do chain = prompt | model, you create a LangChain "Runnable" chain.
+        chain = prompt | model
+        # Both the Gemini model (ChatGoogleGenerativeAI) and the chain object support the .invoke() method.
+        # This method is used to send input to the model (or chain) and get the output.
+        response = chain.invoke({"topic": topic, "length": length})
+        return {"topic": topic, "length": length, "essay": response.content}
+    except Exception:
+        return {"topic": topic, "length": length, "essay": "API ERROR From Server"}
+
+# -------------------------------
+# Poem endpoint
+# -------------------------------
+@app.get("/poem")
+async def poem(topic: str, length: int = 30):
+    try:
+        prompt = ChatPromptTemplate.from_template(
+    "Write me a poem about {topic} with {length} words. "
+    "Use simple and easy words that Indian people can relate to. "
+    "Make sure the poem rhymes and feels enjoyable to read."
+    )
+        chain = prompt | model
+        response = chain.invoke({"topic": topic, "length": length})
+        return {"topic": topic, "length": length, "poem": response.content}
+    except Exception:
+        return {"topic": topic, "length": length, "poem": "API ERROR From Server"}
+    
+# -------------------------------
+# IMAGE GENERATION ENDPOINT
+# -------------------------------
+@app.get("/generate-image")
+async def generate_image(prompt: str, num_images: int = 2):
+    try:
+        gemini_request = (
+            f"Generate {num_images} distinct image generation prompts for Pollinations AI based on: '{prompt}'. "
+            "Return them as a numbered list."
+        )
+        gemini_response = model.invoke(gemini_request).content
+
+        # Check for API key error in Gemini response
+        if "API key not valid" in gemini_response or "Please pass a valid API key" in gemini_response:
+            return {"error": "API key not valid. Please check your Gemini API key."}
+
+        prompts = []
+        for line in gemini_response.splitlines():
+            line = line.strip()
+            if line and (line[0].isdigit() or line.startswith("-")):
+                prompt_text = line.split('.', 1)[-1].strip() if '.' in line else line.lstrip('-').strip()
+                if prompt_text:
+                    prompts.append(prompt_text)
+            elif line:
+                prompts.append(line)
+        prompts = prompts[:num_images]
+
+        if not prompts or any([p.lower().startswith("error") for p in prompts]):
+            return {"error": "API ERROR From Server"}
+
+        images = []
+        for refined_prompt in prompts:
+            image_url = f"https://image.pollinations.ai/prompt/{refined_prompt}"
+            images.append({"prompt": refined_prompt, "image_url": image_url})
+
+        return {"original_prompt": prompt, "images": images}
+    except Exception:
+        return {"error": "API ERROR From Server"}
+
+
+# -------------------------------
+# Run server
+# -------------------------------
+if __name__ == "__main__":
+    uvicorn.run(app, host="localhost", port=8000)
