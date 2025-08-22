@@ -1,3 +1,0 @@
-generate image of lord ganesha
-1: ../storage/images\1.jpg
-2: ../storage/images\2.jpg
