@@ -39,10 +39,10 @@ model = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
 @app.post("/companion")
 async def companion(prompt: str, context: str = ""):
     try:
-        # Single Gemini call: ask for answer and 10-word summary
+        # Single Gemini call: ask for answer and 25-word summary
         full_prompt = (
             f"Context: {context}\nUser: {prompt}\n"
-            "First, answer the user's question. Then, on a new line, write a summary of this Q&A in exactly 10 words, prefixed with 'SUMMARY:'."
+            "First, answer the user's question. Then, on a new line, write a summary of this Q&A in exactly 25 words, prefixed with 'SUMMARY:'."
         )
         response_obj = model.invoke(full_prompt)
         output = response_obj.content
@@ -79,10 +79,11 @@ async def companion(prompt: str, context: str = ""):
 async def essay(topic: str, length: int = 100):
     try:
         prompt = ChatPromptTemplate.from_template(
-        "Write me an essay about {topic} with {length} words. "
-        "Make each paragraph no longer than 50 words. "
-        "Use simple words so people enjoy reading it."
-    )
+    "Write an engaging and informative essay about {topic} in approximately {length} words. "
+    "Use clear, simple language so that readers of all ages can enjoy and understand it. "
+    "Organize the essay with a brief introduction, a well-structured body, and a thoughtful conclusion. "
+    "Make the content interesting and easy to read."
+)
         # When you do chain = prompt | model, you create a LangChain "Runnable" chain.
         chain = prompt | model
 
@@ -101,10 +102,11 @@ async def essay(topic: str, length: int = 100):
 async def poem(topic: str, length: int = 30):
     try:
         prompt = ChatPromptTemplate.from_template(
-    "Write me a poem about {topic} with {length} words. "
-    "Use simple and easy words that Indian people can relate to. "
-    "Make sure the poem rhymes and feels enjoyable to read."
-    )
+    "Write a creative and heartwarming poem about {topic} in approximately {length} words. "
+    "Use simple, relatable language and imagery that resonates with Indian culture and everyday life. "
+    "Ensure the poem has a pleasant rhyme scheme and is enjoyable to read for all ages. "
+    "Make the poem emotionally engaging and easy to understand."
+)
         chain = prompt | model
         response = chain.invoke({"topic": topic, "length": length})
         return {"topic": topic, "length": length, "poem": response.content}

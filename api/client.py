@@ -325,6 +325,7 @@ with tab3:
                     exchanges.append({"prompt": user_input, "answer": answer, "context": context_summary})
                     save_conversation(selected_conv, exchanges)
                     st.session_state[f"exchanges_{selected_conv}"] = exchanges
+                    st.session_state[f"companion_input_{selected_conv}"] = ""
                     st.rerun()
 
 # -------------------------------
