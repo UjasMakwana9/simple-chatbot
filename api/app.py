@@ -1,13 +1,19 @@
-from fastapi import FastAPI, Query
-from langchain.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langserve import add_routes
-import uvicorn
-import os
-from dotenv import load_dotenv
-from fastapi.responses import StreamingResponse
-import requests
-from io import BytesIO
+# FastAPI is a modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints.
+from fastapi import FastAPI, Query  # Main FastAPI class and query parameter handling
+
+
+from langchain.prompts import ChatPromptTemplate  # For building prompt templates for LLMs
+from langchain_google_genai import ChatGoogleGenerativeAI  # Gemini model integration for LangChain
+# from langserve import add_routes  # Utility to expose LangChain chains as API endpoints
+
+# UVicorn is an ASGI server used to run FastAPI applications, handling HTTP requests asynchronously.
+# (Asynchronous Server Gateway Interface)
+import uvicorn  # ASGI server to run FastAPI apps
+
+import os  # OS operations (env vars, paths)
+from dotenv import load_dotenv  # Loads environment variables from .env file
+
+
 
 load_dotenv()
 os.environ['GOOGLE_API_KEY'] = os.getenv('GOOGLE_API_KEY')
@@ -15,7 +21,7 @@ os.environ['GOOGLE_API_KEY'] = os.getenv('GOOGLE_API_KEY')
 app = FastAPI(
     title="Langchain Server",
     version="1.0",
-    description="A simple API Server with Gemini + gTTS Audio"
+    description="A simple API Server with Gemini"
 )
 
 # -------------------------------
@@ -65,6 +71,7 @@ async def companion(prompt: str, context: str = ""):
         }
     except Exception:
         return {"error": "API ERROR From Server"}
+    
 # -------------------------------
 # Essay endpoint
 # -------------------------------
@@ -78,9 +85,11 @@ async def essay(topic: str, length: int = 100):
     )
         # When you do chain = prompt | model, you create a LangChain "Runnable" chain.
         chain = prompt | model
+
         # Both the Gemini model (ChatGoogleGenerativeAI) and the chain object support the .invoke() method.
         # This method is used to send input to the model (or chain) and get the output.
         response = chain.invoke({"topic": topic, "length": length})
+
         return {"topic": topic, "length": length, "essay": response.content}
     except Exception:
         return {"topic": topic, "length": length, "essay": "API ERROR From Server"}
@@ -118,6 +127,7 @@ async def generate_image(prompt: str, num_images: int = 2):
         if "API key not valid" in gemini_response or "Please pass a valid API key" in gemini_response:
             return {"error": "API key not valid. Please check your Gemini API key."}
 
+        # Create the list of the refined prompts we got from the gemini
         prompts = []
         for line in gemini_response.splitlines():
             line = line.strip()
@@ -134,7 +144,7 @@ async def generate_image(prompt: str, num_images: int = 2):
 
         images = []
         for refined_prompt in prompts:
-            image_url = f"https://image.pollinations.ai/prompt/{refined_prompt}"
+            image_url = f"https://image.pollinations.ai/prompt/{refined_prompt}?nologo=true"
             images.append({"prompt": refined_prompt, "image_url": image_url})
 
         return {"original_prompt": prompt, "images": images}

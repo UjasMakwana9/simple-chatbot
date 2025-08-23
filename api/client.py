@@ -3,10 +3,16 @@ import streamlit as st
 import os
 import glob
 
+# ================================
+# Storage Functions
+# ================================
+
+# This is used to save the file to the specified directory
 def save_to_file(filename, content):
     with open(filename, "w", encoding="utf-8") as f:
         f.write(content)
 
+# This is use to load the data from the file
 def load_from_file(filename):
     if os.path.exists(filename):
         with open(filename, "r", encoding="utf-8") as f:
@@ -24,9 +30,13 @@ def save_images_info(prompt, images):
         for idx in range(1, len(images)+1):
             local_path = os.path.join(IMAGES_DIR, f"{idx}.jpg")
             f.write(f"{idx}: {local_path}\n")
+
     # Save each image file to storage/images/1.jpg, 2.jpg, 3.jpg
     if not os.path.exists(IMAGES_DIR):
         os.makedirs(IMAGES_DIR)
+
+    # This loops over the images list, giving you both the index (idx) and the image dictionary (img).
+    # The 1 means indexing starts at 1 (not 0), so the first image will be saved as 1.jpg, the second as 2.jpg, etc.
     for idx, img in enumerate(images, 1):
         img_url = img['image_url']
         img_path = os.path.join(IMAGES_DIR, f"{idx}.jpg")
@@ -53,6 +63,7 @@ def load_images_info():
 
 CONV_DIR = "../storage/conversations"
 
+# This function gets the next available conversation ID 
 def get_next_conversation_id():
     if not os.path.exists(CONV_DIR):
         os.makedirs(CONV_DIR)
@@ -60,6 +71,7 @@ def get_next_conversation_id():
     ids = [int(os.path.splitext(os.path.basename(f))[0]) for f in files if os.path.basename(f).split('.')[0].isdigit()]
     return max(ids, default=0) + 1
 
+# This function saves the conversation exchanges to a file
 def save_conversation(conv_id, exchanges):
     if not os.path.exists(CONV_DIR):
         os.makedirs(CONV_DIR)
@@ -69,6 +81,7 @@ def save_conversation(conv_id, exchanges):
             f.write(f"ANSWER: {ex['answer']}\n")
             f.write(f"CONTEXT: {ex['context']}\n\n")
 
+# This function loads all the conversation we did when we select the particular chat
 def load_conversation(conv_id):
     path = os.path.join(CONV_DIR, f"{conv_id}.txt")
     exchanges = []
@@ -90,6 +103,7 @@ def load_conversation(conv_id):
                 exchanges.append(block)
     return exchanges
 
+# Delete the conversation 
 def delete_conversation(conv_id):
     path = os.path.join(CONV_DIR, f"{conv_id}.txt")
     if os.path.exists(path):
@@ -160,6 +174,7 @@ POEM_FILE = "../storage/poem.txt"
 with tab1:
     topic = st.text_input("Enter a topic for your essay:")
     length = st.slider("Select essay length (words)", 20, 300, 100)
+
     # Load essay from session_state or file
     if "essay_data" not in st.session_state:
         last_essay_data = load_from_file(ESSAY_FILE)
@@ -170,6 +185,8 @@ with tab1:
     if st.button("Generate Essay", key="essay_btn"):
         if topic:
             essay = generate_text("essay", topic, length)
+            
+            # Handles the ERROR
             if(essay == "Bad request" or essay == "API ERROR From Server" or 
                essay == "Can't got the essay object" or essay =="API ERROR From Server-Client"):
                 st.error("Error generating essay.")
