@@ -77,9 +77,9 @@ def save_conversation(conv_id, exchanges):
         os.makedirs(CONV_DIR)
     with open(os.path.join(CONV_DIR, f"{conv_id}.txt"), "w", encoding="utf-8") as f:
         for ex in exchanges:
-            f.write(f"PROMPT: {ex['prompt']}\n")
-            f.write(f"ANSWER: {ex['answer']}\n")
-            f.write(f"CONTEXT: {ex['context']}\n\n")
+            f.write(f"PROMPT: {ex.get('prompt', '')}\n")
+            f.write(f"ANSWER: {ex.get('answer', '')}\n")
+            f.write(f"CONTEXT: {ex.get('context', '')}\n\n")  # <-- fix here
 
 # This function loads all the conversation we did when we select the particular chat
 def load_conversation(conv_id):
@@ -308,14 +308,24 @@ with tab3:
             st.session_state[f"exchanges_{selected_conv}"] = exchanges
         else:
             exchanges = st.session_state[f"exchanges_{selected_conv}"]
+
         for ex in exchanges:
             if 'prompt' in ex:
                 st.markdown(f"**You:** {ex['prompt']}")
             if 'answer' in ex:
                 st.markdown(f"**Companion:** {ex['answer']}")
+        
+        # --- Input field ---
+        st.text_area(
+            "Type your message...",
+            key=f"companion_input_{selected_conv}",
+            height=120
+        )
+
         # Use text_area for bigger prompt input
-        user_input = st.text_area("Type your message...", key=f"companion_input_{selected_conv}", height=120)
-        if st.button("Send", key=f"companion_send_{selected_conv}"):
+        # --- Button with callback ---
+        def handle_send(conv_id):
+            user_input = st.session_state[f"companion_input_{conv_id}"]
             if user_input:
                 context = " ".join([ex['context'] for ex in exchanges if 'context' in ex])
                 answer, context_summary, error = get_gemini_companion_api(user_input, context)
@@ -323,10 +333,18 @@ with tab3:
                     st.error(error)
                 else:
                     exchanges.append({"prompt": user_input, "answer": answer, "context": context_summary})
-                    save_conversation(selected_conv, exchanges)
-                    st.session_state[f"exchanges_{selected_conv}"] = exchanges
-                    st.session_state[f"companion_input_{selected_conv}"] = ""
-                    st.rerun()
+                    save_conversation(conv_id, exchanges)
+                    st.session_state[f"exchanges_{conv_id}"] = exchanges
+
+            # ✅ Clear only the text area
+            st.session_state[f"companion_input_{conv_id}"] = ""
+
+        st.button(
+                "Send",
+                key=f"companion_send_{selected_conv}",
+                on_click=handle_send,
+                args=(selected_conv,)
+            )
 
 # -------------------------------
 # Image
@@ -373,4 +391,5 @@ with tab4:
                 with cols[idx-1]:
                     st.image(img_path, use_container_width=True)
                     st.caption(f"Variation {idx}")
+                    
 
