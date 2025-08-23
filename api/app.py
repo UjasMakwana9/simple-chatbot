@@ -41,8 +41,15 @@ async def companion(prompt: str, context: str = ""):
     try:
         # Single Gemini call: ask for answer and 25-word summary
         full_prompt = (
-            f"Context: {context}\nUser: {prompt}\n"
-            "First, answer the user's question. Then, on a new line, write a summary of this Q&A in exactly 25 words, prefixed with 'SUMMARY:'."
+        f"Conversation Memory:\n{context}\n\n"
+        f"User Prompt:\n{prompt}\n\n"
+        "Instructions:\n"
+        "1. Use the entire conversation memory to recall facts, names, past questions, and previous answers.\n"
+        "2. Always maintain consistency with the memory provided.\n"
+        "3. If the user asks about something already in memory, use that instead of guessing.\n"
+        "4. First, answer the user's question thoroughly.\n"
+        "5. Then, on a new line, provide a 25-word summary of this Q&A, prefixed with 'SUMMARY:'.\n"
+        "6. Ensure the summary captures key details from both the user's request and your answer."
         )
         response_obj = model.invoke(full_prompt)
         output = response_obj.content
